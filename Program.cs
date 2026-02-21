@@ -150,7 +150,7 @@
 
             if (withKatana)
             {
-                puzzles = puzzles.OrderByDescending(p => p.XP / p.Size);
+                puzzles = puzzles.OrderByDescending(p => (float)p.XP / p.Size);
             }
             else
             {
@@ -190,8 +190,11 @@
 
         static void PrintBest(string label, List<Puzzle> filtered, int total)
         {
-            string name = filtered.Count > 0 ? filtered[0].Name : "NONE";
-            Console.WriteLine($"Best {label} ({filtered.Count,4}/{total,4} left): {name}");
+            Puzzle? puzzle = filtered.FirstOrDefault();
+            string description = puzzle != null
+                ? $"{puzzle.Name,-50}, XP:{puzzle.XP}, Size: {puzzle.Size}"
+                : "NONE";
+            Console.WriteLine($"Best {label} ({filtered.Count,4}/{total,4} left): {description}");
         }
     }
 }
