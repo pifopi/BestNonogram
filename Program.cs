@@ -2,6 +2,8 @@
 {
     enum PuzzleType { Color, BW }
     enum PuzzleDifficulty { TrueNonogram, OtherNonogram }
+    enum Order { XP, XPBySize }
+    enum Filter { All, TrueNonogramOnly }
 
     abstract class PuzzleBase { }
 
@@ -45,7 +47,7 @@
             {
                 string? size = args.Row.GetField("Size");
                 System.Diagnostics.Debug.Assert(size != null, "Size field is missing in the CSV");
-                string [] sizes = size.Split('x');
+                string[] sizes = size.Split('x');
                 System.Diagnostics.Debug.Assert(sizes.Count() == 2, $"Size field is invalid {size}");
                 int width = int.Parse(sizes[0]);
                 int height = int.Parse(sizes[1]);
@@ -87,12 +89,12 @@
             while (true)
             {
                 Console.WriteLine();
-                PrintBest("color (mortar)        ", FilterPuzzles(allColors  , withKatana: false,    filterNonTrueNonogram: false), allColors.Count);
-                PrintBest("color (katana)        ", FilterPuzzles(allColors  , withKatana: true,     filterNonTrueNonogram: false), allColors.Count);
-                PrintBest("B&W (mortar)          ", FilterPuzzles(allBWs     , withKatana: false,    filterNonTrueNonogram: false), allBWs.Count);
-                PrintBest("B&W (katana)          ", FilterPuzzles(allBWs     , withKatana: true,     filterNonTrueNonogram: false), allBWs.Count);
-                PrintBest("true nonogram (mortar)", FilterPuzzles(allBWs     , withKatana: false,    filterNonTrueNonogram: true),  allBWs.Count);
-                PrintBest("true nonogram (katana)", FilterPuzzles(allBWs     , withKatana: true,     filterNonTrueNonogram: true),  allBWs.Count);
+                PrintBest("color (XP)               ", FilterPuzzles(allColors, Order.XP,       Filter.All),                allColors.Count);
+                PrintBest("color (XP/Size)          ", FilterPuzzles(allColors, Order.XPBySize, Filter.All),                allColors.Count);
+                PrintBest("B&W (XP)                 ", FilterPuzzles(allBWs,    Order.XP,       Filter.All),                allBWs.Count);
+                PrintBest("B&W (XP/Size)            ", FilterPuzzles(allBWs,    Order.XPBySize, Filter.All),                allBWs.Count);
+                PrintBest("true nonogram (XP)       ", FilterPuzzles(allBWs,    Order.XP,       Filter.TrueNonogramOnly),   allBWs.Count);
+                PrintBest("true nonogram (XP/Size)  ", FilterPuzzles(allBWs,    Order.XPBySize, Filter.TrueNonogramOnly),   allBWs.Count);
 
                 Console.WriteLine("Enter Puzzle Name to mark as done:");
                 string? input = Console.ReadLine();
@@ -101,7 +103,7 @@
                     continue;
                 }
 
-                List<Puzzle> allPuzzles = [..allColors, ..allBWs];
+                List<Puzzle> allPuzzles = [.. allColors, .. allBWs];
                 Puzzle? puzzle = allPuzzles.Find(p => p.Name == input);
                 if (puzzle is null)
                 {
@@ -128,7 +130,7 @@
         }
 
         static List<T> GetPuzzlesFromCsv<T>(string csvFile, CsvHelper.Configuration.ClassMap map)
-            where T: PuzzleBase
+            where T : PuzzleBase
         {
             Console.WriteLine($"Reading csv file : {csvFile}");
 
@@ -141,26 +143,36 @@
             }
         }
 
-        static List<Puzzle> FilterPuzzles(List<Puzzle> input, bool withKatana, bool filterNonTrueNonogram)
+        static List<Puzzle> FilterPuzzles(List<Puzzle> input, Order order, Filter filter)
         {
             IEnumerable<Puzzle> puzzles = input.AsEnumerable();
 
             DateTime cutoff = DateTime.Now.AddDays(-31);
             puzzles = puzzles.Where(p => p.LastDone < cutoff);
 
-            if (withKatana)
+            switch (order)
             {
-                puzzles = puzzles.OrderByDescending(p => (float)p.XP / p.Size);
-            }
-            else
-            {
-                puzzles = puzzles.OrderByDescending(p => p.XP);
+                case Order.XP:
+                    puzzles = puzzles.OrderByDescending(p => p.XP);
+                    break;
+                case Order.XPBySize:
+                    puzzles = puzzles.OrderByDescending(p => (float)p.XP / p.Size);
+                    break;
+                default:
+                    throw new Exception("Invalid order");
             }
 
-            if (filterNonTrueNonogram)
+            switch (filter)
             {
-                puzzles = puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram);
+                case Filter.All:
+                    break;
+                case Filter.TrueNonogramOnly:
+                    puzzles = puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram);
+                    break;
+                default:
+                    throw new Exception("Invalid filter");
             }
+
             return puzzles.ToList();
         }
 
