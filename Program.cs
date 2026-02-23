@@ -5,9 +5,9 @@
     enum Order { XP, XPBySize }
     enum Filter { All, TrueNonogramOnly }
 
-    abstract class PuzzleBase { }
+    abstract class IPuzzle { }
 
-    class LastDonePuzzle : PuzzleBase
+    class LastDonePuzzle : IPuzzle
     {
         public required string Name { get; set; }
         public required DateTime LastDone { get; set; }
@@ -22,14 +22,19 @@
         }
     }
 
-    class Puzzle : PuzzleBase
+    class Puzzle : IPuzzle
     {
         public required string Name { get; set; }
         public required int XP { get; set; }
-        public required int Size { get; set; }
+        public required int Width { get; set; }
+        public required int Height { get; set; }
         public required PuzzleDifficulty Difficulty { get; set; }
         public required PuzzleType Type { get; set; }
         public required DateTime LastDone { get; set; }
+
+        public int Size => Math.Min(Width, Height);
+        public string BestSide => Size == Height ? "Height" : "Width";
+        public float XPBySize => (float)XP / Size;
     }
 
     sealed class PuzzleMap : CsvHelper.Configuration.ClassMap<Puzzle>
@@ -43,20 +48,21 @@
                 System.Diagnostics.Debug.Assert(XP != null, "XP field is missing in the CSV");
                 return int.Parse(XP.Replace("~", ""));
             });
-            Map(m => m.Size).Convert(args =>
+            Map(m => m.Width).Convert(args =>
             {
-                string? size = args.Row.GetField("Size");
-                System.Diagnostics.Debug.Assert(size != null, "Size field is missing in the CSV");
-                string[] sizes = size.Split('x');
-                System.Diagnostics.Debug.Assert(sizes.Count() == 2, $"Size field is invalid {size}");
-                int width = int.Parse(sizes[0]);
-                int height = int.Parse(sizes[1]);
-                return int.Min(width, height);
+                var (width, _) = ParseSize(args);
+                return width;
+            });
+            Map(m => m.Height).Convert(args =>
+            {
+                var (_, height) = ParseSize(args);
+                return height;
             });
             Map(m => m.Difficulty).Convert(args =>
             {
                 string? type = args.Row.GetField("Puzzle<br>type");
-                if (type is not null && type.Contains("True_nonogram_icon.png"))
+                System.Diagnostics.Debug.Assert(type != null, "Type field is missing in the CSV");
+                if (type.Contains("True_nonogram_icon.png"))
                 {
                     return PuzzleDifficulty.TrueNonogram;
                 }
@@ -72,6 +78,17 @@
                 LastDonePuzzle? lastDonePuzzle = lastDonePuzzles.Find(p => p.Name == name);
                 return lastDonePuzzle != null ? lastDonePuzzle.LastDone : DateTime.MinValue;
             });
+        }
+
+        (int, int) ParseSize(CsvHelper.ConvertFromStringArgs args)
+        {
+            string? size = args.Row.GetField("Size");
+            System.Diagnostics.Debug.Assert(size != null, "Size field is missing in the CSV");
+            string[] sizes = size.Split('x');
+            System.Diagnostics.Debug.Assert(sizes.Count() == 2, $"Size field is invalid {size}");
+            int width = int.Parse(sizes[0]);
+            int height = int.Parse(sizes[1]);
+            return (width, height);
         }
     }
 
@@ -89,12 +106,12 @@
             while (true)
             {
                 Console.WriteLine();
-                PrintBest("color (XP)               ", FilterPuzzles(allColors, Order.XP,       Filter.All),                allColors.Count);
-                PrintBest("color (XP/Size)          ", FilterPuzzles(allColors, Order.XPBySize, Filter.All),                allColors.Count);
-                PrintBest("B&W (XP)                 ", FilterPuzzles(allBWs,    Order.XP,       Filter.All),                allBWs.Count);
-                PrintBest("B&W (XP/Size)            ", FilterPuzzles(allBWs,    Order.XPBySize, Filter.All),                allBWs.Count);
-                PrintBest("true nonogram (XP)       ", FilterPuzzles(allBWs,    Order.XP,       Filter.TrueNonogramOnly),   allBWs.Count);
-                PrintBest("true nonogram (XP/Size)  ", FilterPuzzles(allBWs,    Order.XPBySize, Filter.TrueNonogramOnly),   allBWs.Count);
+                PrintBest("color (XP)             ", FilterPuzzles(allColors,   Order.XP,       Filter.All),                allColors.Count);
+                PrintBest("color (XP/Size)        ", FilterPuzzles(allColors,   Order.XPBySize, Filter.All),                allColors.Count);
+                PrintBest("B&W (XP)               ", FilterPuzzles(allBWs,      Order.XP,       Filter.All),                allBWs.Count);
+                PrintBest("B&W (XP/Size)          ", FilterPuzzles(allBWs,      Order.XPBySize, Filter.All),                allBWs.Count);
+                PrintBest("true nonogram (XP)     ", FilterPuzzles(allBWs,      Order.XP,       Filter.TrueNonogramOnly),   allBWs.Count);
+                PrintBest("true nonogram (XP/Size)", FilterPuzzles(allBWs,      Order.XPBySize, Filter.TrueNonogramOnly),   allBWs.Count);
 
                 Console.WriteLine("Enter Puzzle Name to mark as done:");
                 string? input = Console.ReadLine();
@@ -113,6 +130,7 @@
                 {
                     puzzle.LastDone = DateTime.Now;
                     UpdateLastUsed(puzzle.Name, lastDonePuzzlesFile, lastDonePuzzles);
+                    Console.WriteLine("Puzzle updated.");
                 }
             }
         }
@@ -130,7 +148,7 @@
         }
 
         static List<T> GetPuzzlesFromCsv<T>(string csvFile, CsvHelper.Configuration.ClassMap map)
-            where T : PuzzleBase
+            where T : IPuzzle
         {
             Console.WriteLine($"Reading csv file : {csvFile}");
 
@@ -156,7 +174,7 @@
                     puzzles = puzzles.OrderByDescending(p => p.XP);
                     break;
                 case Order.XPBySize:
-                    puzzles = puzzles.OrderByDescending(p => (float)p.XP / p.Size);
+                    puzzles = puzzles.OrderByDescending(p => p.XPBySize);
                     break;
                 default:
                     throw new Exception("Invalid order");
@@ -204,7 +222,7 @@
         {
             Puzzle? puzzle = filtered.FirstOrDefault();
             string description = puzzle != null
-                ? $"{puzzle.Name,-50}, XP:{puzzle.XP}, Size: {puzzle.Size}"
+                ? $"{puzzle.Name,-50} {puzzle.XP} {puzzle.Width}x{puzzle.Height}({puzzle.BestSide})"
                 : "NONE";
             Console.WriteLine($"Best {label} ({filtered.Count,4}/{total,4} left): {description}");
         }
