@@ -94,7 +94,23 @@
 
     class Program
     {
-        static void Main(string[] args)
+        private static readonly Discord.WebSocket.DiscordSocketClient _client = new(
+            new Discord.WebSocket.DiscordSocketConfig()
+            {
+                GatewayIntents = Discord.GatewayIntents.AllUnprivileged | Discord.GatewayIntents.MessageContent
+            }
+        );
+
+        static async Task Main(string[] args)
+        {
+            string token = Environment.GetEnvironmentVariable("DISCORD_BOT_TOKEN") ?? throw new Exception("DISCORD_BOT_TOKEN is not set");
+            await _client.LoginAsync(Discord.TokenType.Bot, token);
+            await _client.StartAsync();
+            _client.Ready += OnReady;
+            await Task.Delay(-1);
+        }
+
+        static async Task OnReady()
         {
             string directory = "../../../config/";
             string lastDonePuzzlesFile = Path.Combine(directory, "LastDonePuzzles.csv");
@@ -103,35 +119,59 @@
             List<Puzzle> allColors = GetAllPuzzles(directory, PuzzleType.Color, lastDonePuzzles);
             List<Puzzle> allBWs = GetAllPuzzles(directory, PuzzleType.BW, lastDonePuzzles);
 
+            ulong channelId = 1479864933985550398;
+            Discord.IMessageChannel channel = await _client.GetChannelAsync(1479864933985550398) as Discord.IMessageChannel ?? throw new Exception("Channel is null");
+
+            string colorImage = "Color.png";
+            string BWImage = "BW.png";
+            string trueNonogramImage = "TrueNonogram.png";
+
             while (true)
             {
-                Console.WriteLine();
-                PrintBest("color (XP)             ", FilterPuzzles(allColors,   Order.XP,       Filter.All),                allColors.Count);
-                PrintBest("color (XP/Size)        ", FilterPuzzles(allColors,   Order.XPBySize, Filter.All),                allColors.Count);
-                PrintBest("B&W (XP)               ", FilterPuzzles(allBWs,      Order.XP,       Filter.All),                allBWs.Count);
-                PrintBest("B&W (XP/Size)          ", FilterPuzzles(allBWs,      Order.XPBySize, Filter.All),                allBWs.Count);
-                PrintBest("true nonogram (XP)     ", FilterPuzzles(allBWs,      Order.XP,       Filter.TrueNonogramOnly),   allBWs.Count);
-                PrintBest("true nonogram (XP/Size)", FilterPuzzles(allBWs,      Order.XPBySize, Filter.TrueNonogramOnly),   allBWs.Count);
+                Discord.Embed[] embeds =
+                [
+                    CreateEmbed(colorImage       , "XP"     ,  FilterPuzzles(allColors, Order.XP,       Filter.All),              allColors.Count),
+                    CreateEmbed(colorImage       , "XP/Size",  FilterPuzzles(allColors, Order.XPBySize, Filter.All),              allColors.Count),
+                    CreateEmbed(BWImage          , "XP"     ,  FilterPuzzles(allBWs,    Order.XP,       Filter.All),              allBWs.Count),
+                    CreateEmbed(BWImage          , "XP/Size",  FilterPuzzles(allBWs,    Order.XPBySize, Filter.All),              allBWs.Count),
+                    CreateEmbed(trueNonogramImage, "XP"     ,  FilterPuzzles(allBWs,    Order.XP,       Filter.TrueNonogramOnly), allBWs.Count),
+                    CreateEmbed(trueNonogramImage, "XP/Size",  FilterPuzzles(allBWs,    Order.XPBySize, Filter.TrueNonogramOnly), allBWs.Count),
+                ];
+                await channel.SendFilesAsync([
+                    new Discord.FileAttachment(Path.Combine(directory, colorImage)),
+                    new Discord.FileAttachment(Path.Combine(directory, BWImage)),
+                    new Discord.FileAttachment(Path.Combine(directory, trueNonogramImage))
+                ], embeds: embeds);
+                await channel.SendMessageAsync("Enter Puzzle Name to mark as done");
 
-                Console.WriteLine("Enter Puzzle Name to mark as done:");
-                string? input = Console.ReadLine();
-                if (string.IsNullOrEmpty(input))
+                TaskCompletionSource completedPuzzle = new();
+                async Task handler(Discord.WebSocket.SocketMessage message)
                 {
-                    continue;
+                    if (message.Channel.Id != channelId)
+                    {
+                        return;
+                    }
+                    if (message.Author.IsBot)
+                    {
+                        return;
+                    }
+                    List<Puzzle> allPuzzles = [.. allColors, .. allBWs];
+                    Puzzle? puzzle = allPuzzles.Find(p => p.Name == message.Content);
+                    if (puzzle is null)
+                    {
+                        await channel.SendMessageAsync($"Puzzle {message.Content} not found.");
+                    }
+                    else
+                    {
+                        puzzle.LastDone = DateTime.Now;
+                        UpdateLastUsed(puzzle.Name, Path.Combine("../../../config/", "LastDonePuzzles.csv"), lastDonePuzzles);
+                        await channel.SendMessageAsync($"Puzzle {message.Content} updated.");
+                        completedPuzzle.SetResult();
+                    }
                 }
-
-                List<Puzzle> allPuzzles = [.. allColors, .. allBWs];
-                Puzzle? puzzle = allPuzzles.Find(p => p.Name == input);
-                if (puzzle is null)
-                {
-                    Console.WriteLine("Puzzle not found.");
-                }
-                else
-                {
-                    puzzle.LastDone = DateTime.Now;
-                    UpdateLastUsed(puzzle.Name, lastDonePuzzlesFile, lastDonePuzzles);
-                    Console.WriteLine("Puzzle updated.");
-                }
+                _client.MessageReceived += handler;
+                await Task.WhenAll(completedPuzzle.Task);
+                _client.MessageReceived -= handler;
             }
         }
 
@@ -150,8 +190,6 @@
         static List<T> GetPuzzlesFromCsv<T>(string csvFile, CsvHelper.Configuration.ClassMap map)
             where T : IPuzzle
         {
-            Console.WriteLine($"Reading csv file : {csvFile}");
-
             var config = new CsvHelper.Configuration.CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture);
             using (var reader = new StreamReader(csvFile))
             using (var csv = new CsvHelper.CsvReader(reader, config))
@@ -197,7 +235,7 @@
         static void UpdateLastUsed(string name, string lastDonePuzzlesFile, List<LastDonePuzzle> lastDonePuzzles)
         {
             LastDonePuzzle? lastUsed = lastDonePuzzles.Find(p => p.Name == name);
-            if (lastUsed == null)
+            if (lastUsed is null)
             {
                 lastDonePuzzles.Add(new LastDonePuzzle { Name = name, LastDone = DateTime.Now });
             }
@@ -218,13 +256,20 @@
             }
         }
 
-        static void PrintBest(string label, List<Puzzle> filtered, int total)
+        static Discord.Embed CreateEmbed(string image, string label, List<Puzzle> filtered, int total)
         {
+            Discord.EmbedBuilder builder = new();
+            builder.WithTitle($"Best {label} ({filtered.Count}/{total} left)");
+            builder.WithThumbnailUrl($"attachment://{image}");
+
             Puzzle? puzzle = filtered.FirstOrDefault();
-            string description = puzzle != null
-                ? $"{puzzle.Name,-50} {puzzle.XP} {puzzle.Width}x{puzzle.Height}({puzzle.BestSide})"
-                : "NONE";
-            Console.WriteLine($"Best {label} ({filtered.Count,4}/{total,4} left): {description}");
+            if (puzzle is not null)
+            {
+                builder.AddField("Name", $"{puzzle.Name}");
+                builder.AddField("Size", $"{puzzle.Width}x{puzzle.Height} ({puzzle.BestSide})");
+            }
+
+            return builder.Build();
         }
     }
 }
