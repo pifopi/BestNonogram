@@ -168,6 +168,17 @@
             DateTime cutoff = DateTime.Now.AddDays(-31);
             puzzles = puzzles.Where(p => p.LastDone < cutoff);
 
+            switch (filter)
+            {
+                case Filter.All:
+                    break;
+                case Filter.TrueNonogramOnly:
+                    puzzles = puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram);
+                    break;
+                default:
+                    throw new Exception("Invalid filter");
+            }
+
             switch (order)
             {
                 case Order.XP:
@@ -178,17 +189,6 @@
                     break;
                 default:
                     throw new Exception("Invalid order");
-            }
-
-            switch (filter)
-            {
-                case Filter.All:
-                    break;
-                case Filter.TrueNonogramOnly:
-                    puzzles = puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram);
-                    break;
-                default:
-                    throw new Exception("Invalid filter");
             }
 
             return puzzles.ToList();
