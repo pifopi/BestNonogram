@@ -210,7 +210,7 @@
             {
                 Order.XP => "XP",
                 Order.XPBySize => "XP/Size",
-                _ => throw new Exception("Invalid order type")
+                _ => throw new Exception("Invalid order")
             };
             builder.WithTitle($"{label} ({filteredPuzzles.Count}/{puzzles.Count} left)");
 
@@ -235,7 +235,7 @@
             {
                 Filter.All => puzzles,
                 Filter.TrueNonogramOnly => puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram),
-                _ => throw new Exception("Invalid filrer")
+                _ => throw new Exception("Invalid filter")
             };
 
             puzzles = order switch
