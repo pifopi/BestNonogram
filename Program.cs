@@ -5,9 +5,7 @@
     enum Order { XP, XPBySize }
     enum Filter { All, TrueNonogramOnly }
 
-    abstract class IPuzzle { }
-
-    class LastDonePuzzle : IPuzzle
+    class LastDonePuzzle
     {
         public required string Name { get; set; }
         public required DateTime LastDone { get; set; }
@@ -22,7 +20,7 @@
         }
     }
 
-    class Puzzle : IPuzzle
+    class Puzzle
     {
         public required string Name { get; set; }
         public required int XP { get; set; }
@@ -37,61 +35,6 @@
         public float XPBySize => (float)XP / Size;
     }
 
-    sealed class PuzzleMap : CsvHelper.Configuration.ClassMap<Puzzle>
-    {
-        public PuzzleMap(PuzzleType puzzleType, List<LastDonePuzzle> lastDonePuzzles)
-        {
-            Map(m => m.Name).Name("Puzzle ID:Puzzle Name");
-            Map(m => m.XP).Convert(args =>
-            {
-                string? XP = args.Row.GetField(4);
-                System.Diagnostics.Debug.Assert(XP != null, "XP field is missing in the CSV");
-                return int.Parse(XP.Replace("~", ""));
-            });
-            Map(m => m.Width).Convert(args =>
-            {
-                var (width, _) = ParseSize(args);
-                return width;
-            });
-            Map(m => m.Height).Convert(args =>
-            {
-                var (_, height) = ParseSize(args);
-                return height;
-            });
-            Map(m => m.Difficulty).Convert(args =>
-            {
-                string? type = args.Row.GetField("Puzzle<br>type");
-                System.Diagnostics.Debug.Assert(type != null, "Type field is missing in the CSV");
-                if (type.Contains("True_nonogram_icon.png"))
-                {
-                    return PuzzleDifficulty.TrueNonogram;
-                }
-                else
-                {
-                    return PuzzleDifficulty.OtherNonogram;
-                }
-            });
-            Map(m => m.Type).Constant(puzzleType);
-            Map(m => m.LastDone).Convert(args =>
-            {
-                string? name = args.Row.GetField("Puzzle ID:Puzzle Name");
-                LastDonePuzzle? lastDonePuzzle = lastDonePuzzles.Find(p => p.Name == name);
-                return lastDonePuzzle != null ? lastDonePuzzle.LastDone : DateTime.MinValue;
-            });
-        }
-
-        (int, int) ParseSize(CsvHelper.ConvertFromStringArgs args)
-        {
-            string? size = args.Row.GetField("Size");
-            System.Diagnostics.Debug.Assert(size != null, "Size field is missing in the CSV");
-            string[] sizes = size.Split('x');
-            System.Diagnostics.Debug.Assert(sizes.Count() == 2, $"Size field is invalid {size}");
-            int width = int.Parse(sizes[0]);
-            int height = int.Parse(sizes[1]);
-            return (width, height);
-        }
-    }
-
     class Program
     {
         private static readonly Discord.WebSocket.DiscordSocketClient _client = new(
@@ -104,9 +47,9 @@
         private static string _directory = $"{AppDomain.CurrentDomain.BaseDirectory}../../../config/";
 
         private static string _lastDonePuzzlesFile = Path.Combine(_directory, "LastDonePuzzles.csv");
-        private static List<LastDonePuzzle> _lastDonePuzzles = GetPuzzlesFromCsv<LastDonePuzzle>(_lastDonePuzzlesFile, new LastDonePuzzleMap());
-        private static List<Puzzle> _colorPuzzles = GetPuzzlesFromCsv<Puzzle>(Path.Combine(_directory, "Colors.csv"), new PuzzleMap(PuzzleType.Color, _lastDonePuzzles));
-        private static List<Puzzle> _BWPuzzles = GetPuzzlesFromCsv<Puzzle>(Path.Combine(_directory, "BWs.csv"), new PuzzleMap(PuzzleType.BW, _lastDonePuzzles));
+        private static List<LastDonePuzzle> _lastDonePuzzles = GetPuzzlesFromCsv(_lastDonePuzzlesFile, new LastDonePuzzleMap());
+        private static List<Puzzle> _colorPuzzles = GetPuzzlesFromLua(Path.Combine(_directory, "Colors.lua"), PuzzleType.Color);
+        private static List<Puzzle> _BWPuzzles = GetPuzzlesFromLua(Path.Combine(_directory, "BWs.lua"), PuzzleType.BW);
 
         private static string _colorImage = "Color.png";
         private static string _BWImage = "BW.png";
@@ -177,14 +120,72 @@
             }
         }
 
-        static List<T> GetPuzzlesFromCsv<T>(string csvFile, CsvHelper.Configuration.ClassMap map)
-            where T : IPuzzle
+        static List<LastDonePuzzle> GetPuzzlesFromCsv(string csvFile, CsvHelper.Configuration.ClassMap map)
         {
             CsvHelper.Configuration.CsvConfiguration config = new(System.Globalization.CultureInfo.InvariantCulture);
             using StreamReader reader = new(csvFile);
             using CsvHelper.CsvReader csv = new(reader, config);
             csv.Context.RegisterClassMap(map);
-            return csv.GetRecords<T>().ToList();
+            return csv.GetRecords<LastDonePuzzle>().ToList();
+        }
+
+        static List<Puzzle> GetPuzzlesFromLua(string luaFile, PuzzleType puzzleType)
+        {
+            MoonSharp.Interpreter.Script lua = new();
+            var result = lua.DoFile(luaFile);
+
+            List<Puzzle> puzzles = new();
+            foreach (var item in result.Table.Values)
+            {
+                var table = item.Table;
+
+                string name = table.Get("link").String;
+                if (string.IsNullOrEmpty(name))
+                {
+                    continue;
+                }
+
+                int xp = new Func<int>(() =>
+                {
+                    string xp = table.Get("new_xp").String;
+                    xp = xp.Replace("~", "");
+                    return int.Parse(xp);
+                })();
+
+                (int width, int height) = new Func<(int, int)>(() =>
+                {
+                    string size = table.Get("size").String;
+                    string[] sizes = size.Split('x');
+                    System.Diagnostics.Debug.Assert(sizes.Count() == 2, $"Size field is invalid {size}");
+                    int width = int.Parse(sizes[0]);
+                    int height = int.Parse(sizes[1]);
+                    return (width, height);
+                })();
+
+                PuzzleDifficulty difficulty = new Func<PuzzleDifficulty>(() =>
+                {
+                    string type = table.Get("puzzle_type").String;
+                    return type == "1" ? PuzzleDifficulty.TrueNonogram : PuzzleDifficulty.OtherNonogram;
+                })();
+
+                DateTime lastDone = new Func<DateTime>(() =>
+                {
+                    LastDonePuzzle? lastDonePuzzle = _lastDonePuzzles.Find(p => p.Name == name);
+                    return lastDonePuzzle != null ? lastDonePuzzle.LastDone : DateTime.MinValue;
+                })();
+
+                puzzles.Add(new Puzzle
+                {
+                    Name = name,
+                    XP = xp,
+                    Width = width,
+                    Height = height,
+                    Difficulty = difficulty,
+                    Type = puzzleType,
+                    LastDone = lastDone
+                });
+            }
+            return puzzles;
         }
 
         static Discord.Embed CreateEmbed(PuzzleType puzzleType, Order order, Filter filter)
@@ -218,7 +219,7 @@
             if (puzzle is not null)
             {
                 builder.AddField("Name", $"{puzzle.Name}");
-                builder.AddField("Size", $"{puzzle.Width}x{puzzle.Height} ({puzzle.BestSide})");
+                builder.AddField("Description", $"{puzzle.XP}xp {puzzle.Width}x{puzzle.Height} ({puzzle.BestSide})");
             }
 
             return builder.Build();
