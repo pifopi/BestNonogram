@@ -111,11 +111,6 @@
         private static string _colorImage = "Color.png";
         private static string _BWImage = "BW.png";
         private static string _trueNonogramImage = "TrueNonogram.png";
-        private static Discord.FileAttachment[] attachments = [
-            new(Path.Combine(_directory, _colorImage)),
-            new(Path.Combine(_directory, _BWImage)),
-            new(Path.Combine(_directory, _trueNonogramImage))
-        ];
 
         static async Task Main(string[] args)
         {
@@ -132,6 +127,12 @@
             ulong channelId = 1479864933985550398;
             Discord.IMessageChannel channel = await _client.GetChannelAsync(1479864933985550398) as Discord.IMessageChannel ?? throw new Exception("Channel is null");
 
+            Discord.FileAttachment[] attachments = [
+                new(Path.Combine(_directory, _colorImage)),
+                new(Path.Combine(_directory, _BWImage)),
+                new(Path.Combine(_directory, _trueNonogramImage))
+            ];
+
             while (true)
             {
                 Discord.Embed[] embeds =
@@ -144,7 +145,7 @@
                     CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.TrueNonogramOnly),
                 ];
                 await channel.SendFilesAsync(attachments, embeds: embeds);
-                await channel.SendMessageAsync("Enter Puzzle Name to mark as done");
+                await channel.SendMessageAsync("Enter Puzzle Name to mark as done.");
 
                 TaskCompletionSource completedPuzzle = new();
                 async Task handler(Discord.WebSocket.SocketMessage message)
@@ -165,8 +166,7 @@
                     }
                     else
                     {
-                        puzzle.LastDone = DateTime.Now;
-                        UpdateLastUsed(puzzle.Name, Path.Combine("../../../config/", "LastDonePuzzles.csv"), _lastDonePuzzles);
+                        UpdateLastUsed(puzzle);
                         await channel.SendMessageAsync($"Puzzle {message.Content} updated.");
                         completedPuzzle.SetResult();
                     }
@@ -249,8 +249,10 @@
             return puzzles.ToList();
         }
 
-        static void UpdateLastUsed(string name)
+        static void UpdateLastUsed(Puzzle puzzle)
         {
+            puzzle.LastDone = DateTime.Now;
+            string name = puzzle.Name;
             LastDonePuzzle? lastUsed = _lastDonePuzzles.Find(p => p.Name == name);
             if (lastUsed is null)
             {
