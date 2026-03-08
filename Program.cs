@@ -233,29 +233,19 @@
             DateTime cutoff = DateTime.Now.AddDays(-31);
             puzzles = puzzles.Where(p => p.LastDone < cutoff);
 
-            switch (filter)
+            puzzles = filter switch
             {
-                case Filter.All:
-                    break;
-                case Filter.TrueNonogramOnly:
-                    puzzles = puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram);
-                    break;
-                default:
-                    throw new Exception("Invalid filter");
-            }
+                Filter.All => puzzles,
+                Filter.TrueNonogramOnly => puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram)
+                _ => throw new Exception("Invalid filrer")
+            };
 
-            switch (order)
+            puzzles = order switch
             {
-                case Order.XP:
-                    puzzles = puzzles.OrderByDescending(p => p.XP);
-                    break;
-                case Order.XPBySize:
-                    puzzles = puzzles.OrderByDescending(p => p.XPBySize);
-                    break;
-                default:
-                    throw new Exception("Invalid order");
-            }
-
+                Order.XP => puzzles.OrderByDescending(p => p.XP),
+                Order.XPBySize => puzzles.OrderByDescending(p => p.XPBySize),
+                _ => throw new Exception("Invalid order"),
+            };
             return puzzles.ToList();
         }
 
