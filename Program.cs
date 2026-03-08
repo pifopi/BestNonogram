@@ -101,7 +101,7 @@
             }
         );
 
-        private static string _directory = "../../../config/";
+        private static string _directory = $"{AppDomain.CurrentDomain.BaseDirectory}../../../config/";
 
         private static string _lastDonePuzzlesFile = Path.Combine(_directory, "LastDonePuzzles.csv");
         private static List<LastDonePuzzle> _lastDonePuzzles = GetPuzzlesFromCsv<LastDonePuzzle>(_lastDonePuzzlesFile, new LastDonePuzzleMap());
