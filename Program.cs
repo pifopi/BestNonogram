@@ -180,13 +180,11 @@
         static List<T> GetPuzzlesFromCsv<T>(string csvFile, CsvHelper.Configuration.ClassMap map)
             where T : IPuzzle
         {
-            var config = new CsvHelper.Configuration.CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture);
-            using (var reader = new StreamReader(csvFile))
-            using (var csv = new CsvHelper.CsvReader(reader, config))
-            {
-                csv.Context.RegisterClassMap(map);
-                return csv.GetRecords<T>().ToList();
-            }
+            CsvHelper.Configuration.CsvConfiguration config = new(System.Globalization.CultureInfo.InvariantCulture);
+            using StreamReader reader = new(csvFile);
+            using CsvHelper.CsvReader csv = new(reader, config);
+            csv.Context.RegisterClassMap(map);
+            return csv.GetRecords<T>().ToList();
         }
 
         static Discord.Embed CreateEmbed(PuzzleType puzzleType, Order order, Filter filter)
@@ -267,12 +265,10 @@
 
         static void WritePuzzlesToCsv(string lastDonePuzzlesFile, List<LastDonePuzzle> lastDonePuzzles)
         {
-            var config = new CsvHelper.Configuration.CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture);
-            using (var writer = new StreamWriter(lastDonePuzzlesFile))
-            using (var csv = new CsvHelper.CsvWriter(writer, config))
-            {
-                csv.WriteRecords(lastDonePuzzles);
-            }
+            CsvHelper.Configuration.CsvConfiguration config = new(System.Globalization.CultureInfo.InvariantCulture);
+            using StreamWriter writer = new(lastDonePuzzlesFile);
+            using CsvHelper.CsvWriter csv = new(writer, config);
+            csv.WriteRecords(lastDonePuzzles);
         }
     }
 }
