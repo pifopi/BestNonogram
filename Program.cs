@@ -236,7 +236,7 @@
             puzzles = filter switch
             {
                 Filter.All => puzzles,
-                Filter.TrueNonogramOnly => puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram)
+                Filter.TrueNonogramOnly => puzzles.Where(p => p.Difficulty == PuzzleDifficulty.TrueNonogram),
                 _ => throw new Exception("Invalid filrer")
             };
 
@@ -249,18 +249,18 @@
             return puzzles.ToList();
         }
 
-        static void UpdateLastUsed(string name, string lastDonePuzzlesFile, List<LastDonePuzzle> lastDonePuzzles)
+        static void UpdateLastUsed(string name)
         {
-            LastDonePuzzle? lastUsed = lastDonePuzzles.Find(p => p.Name == name);
+            LastDonePuzzle? lastUsed = _lastDonePuzzles.Find(p => p.Name == name);
             if (lastUsed is null)
             {
-                lastDonePuzzles.Add(new LastDonePuzzle { Name = name, LastDone = DateTime.Now });
+                _lastDonePuzzles.Add(new LastDonePuzzle { Name = name, LastDone = DateTime.Now });
             }
             else
             {
                 lastUsed.LastDone = DateTime.Now;
             }
-            WritePuzzlesToCsv(lastDonePuzzlesFile, lastDonePuzzles);
+            WritePuzzlesToCsv(_lastDonePuzzlesFile, _lastDonePuzzles);
         }
 
         static void WritePuzzlesToCsv(string lastDonePuzzlesFile, List<LastDonePuzzle> lastDonePuzzles)
