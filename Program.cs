@@ -101,6 +101,22 @@
             }
         );
 
+        private static string _directory = "../../../config/";
+
+        private static string _lastDonePuzzlesFile = Path.Combine(_directory, "LastDonePuzzles.csv");
+        private static List<LastDonePuzzle> _lastDonePuzzles = GetPuzzlesFromCsv<LastDonePuzzle>(_lastDonePuzzlesFile, new LastDonePuzzleMap());
+        private static List<Puzzle> _colorPuzzles = GetPuzzlesFromCsv<Puzzle>(Path.Combine(_directory, "Colors.csv"), new PuzzleMap(PuzzleType.Color, _lastDonePuzzles));
+        private static List<Puzzle> _BWPuzzles = GetPuzzlesFromCsv<Puzzle>(Path.Combine(_directory, "BWs.csv"), new PuzzleMap(PuzzleType.BW, _lastDonePuzzles));
+
+        private static string _colorImage = "Color.png";
+        private static string _BWImage = "BW.png";
+        private static string _trueNonogramImage = "TrueNonogram.png";
+        private static Discord.FileAttachment[] attachments = [
+            new(Path.Combine(_directory, _colorImage)),
+            new(Path.Combine(_directory, _BWImage)),
+            new(Path.Combine(_directory, _trueNonogramImage))
+        ];
+
         static async Task Main(string[] args)
         {
             string token = Environment.GetEnvironmentVariable("DISCORD_BOT_TOKEN") ?? throw new Exception("DISCORD_BOT_TOKEN is not set");
@@ -112,36 +128,22 @@
 
         static async Task OnReady()
         {
-            string directory = "../../../config/";
-            string lastDonePuzzlesFile = Path.Combine(directory, "LastDonePuzzles.csv");
-            List<LastDonePuzzle> lastDonePuzzles = GetPuzzlesFromCsv<LastDonePuzzle>(lastDonePuzzlesFile, new LastDonePuzzleMap());
-
-            List<Puzzle> allColors = GetAllPuzzles(directory, PuzzleType.Color, lastDonePuzzles);
-            List<Puzzle> allBWs = GetAllPuzzles(directory, PuzzleType.BW, lastDonePuzzles);
 
             ulong channelId = 1479864933985550398;
             Discord.IMessageChannel channel = await _client.GetChannelAsync(1479864933985550398) as Discord.IMessageChannel ?? throw new Exception("Channel is null");
-
-            string colorImage = "Color.png";
-            string BWImage = "BW.png";
-            string trueNonogramImage = "TrueNonogram.png";
 
             while (true)
             {
                 Discord.Embed[] embeds =
                 [
-                    CreateEmbed(colorImage       , "XP"     ,  FilterPuzzles(allColors, Order.XP,       Filter.All),              allColors.Count),
-                    CreateEmbed(colorImage       , "XP/Size",  FilterPuzzles(allColors, Order.XPBySize, Filter.All),              allColors.Count),
-                    CreateEmbed(BWImage          , "XP"     ,  FilterPuzzles(allBWs,    Order.XP,       Filter.All),              allBWs.Count),
-                    CreateEmbed(BWImage          , "XP/Size",  FilterPuzzles(allBWs,    Order.XPBySize, Filter.All),              allBWs.Count),
-                    CreateEmbed(trueNonogramImage, "XP"     ,  FilterPuzzles(allBWs,    Order.XP,       Filter.TrueNonogramOnly), allBWs.Count),
-                    CreateEmbed(trueNonogramImage, "XP/Size",  FilterPuzzles(allBWs,    Order.XPBySize, Filter.TrueNonogramOnly), allBWs.Count),
+                    CreateEmbed(PuzzleType.Color, Order.XP, Filter.All),
+                    CreateEmbed(PuzzleType.Color, Order.XPBySize, Filter.All),
+                    CreateEmbed(PuzzleType.BW, Order.XP, Filter.All),
+                    CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.All),
+                    CreateEmbed(PuzzleType.BW, Order.XP, Filter.TrueNonogramOnly),
+                    CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.TrueNonogramOnly),
                 ];
-                await channel.SendFilesAsync([
-                    new Discord.FileAttachment(Path.Combine(directory, colorImage)),
-                    new Discord.FileAttachment(Path.Combine(directory, BWImage)),
-                    new Discord.FileAttachment(Path.Combine(directory, trueNonogramImage))
-                ], embeds: embeds);
+                await channel.SendFilesAsync(attachments, embeds: embeds);
                 await channel.SendMessageAsync("Enter Puzzle Name to mark as done");
 
                 TaskCompletionSource completedPuzzle = new();
@@ -155,7 +157,7 @@
                     {
                         return;
                     }
-                    List<Puzzle> allPuzzles = [.. allColors, .. allBWs];
+                    List<Puzzle> allPuzzles = [.. _colorPuzzles, .. _BWPuzzles];
                     Puzzle? puzzle = allPuzzles.Find(p => p.Name == message.Content);
                     if (puzzle is null)
                     {
@@ -164,7 +166,7 @@
                     else
                     {
                         puzzle.LastDone = DateTime.Now;
-                        UpdateLastUsed(puzzle.Name, Path.Combine("../../../config/", "LastDonePuzzles.csv"), lastDonePuzzles);
+                        UpdateLastUsed(puzzle.Name, Path.Combine("../../../config/", "LastDonePuzzles.csv"), _lastDonePuzzles);
                         await channel.SendMessageAsync($"Puzzle {message.Content} updated.");
                         completedPuzzle.SetResult();
                     }
@@ -173,18 +175,6 @@
                 await Task.WhenAll(completedPuzzle.Task);
                 _client.MessageReceived -= handler;
             }
-        }
-
-        static List<Puzzle> GetAllPuzzles(string directory, PuzzleType puzzleType, List<LastDonePuzzle> lastDonePuzzles)
-        {
-            string file = puzzleType switch
-            {
-                PuzzleType.Color => "Colors.csv",
-                PuzzleType.BW => "BWs.csv",
-                _ => throw new Exception("Invalid puzzle type")
-            };
-            PuzzleMap map = new PuzzleMap(puzzleType, lastDonePuzzles);
-            return GetPuzzlesFromCsv<Puzzle>(Path.Combine(directory, file), map);
         }
 
         static List<T> GetPuzzlesFromCsv<T>(string csvFile, CsvHelper.Configuration.ClassMap map)
@@ -197,6 +187,43 @@
                 csv.Context.RegisterClassMap(map);
                 return csv.GetRecords<T>().ToList();
             }
+        }
+
+        static Discord.Embed CreateEmbed(PuzzleType puzzleType, Order order, Filter filter)
+        {
+            List<Puzzle> puzzles = puzzleType switch
+            {
+                PuzzleType.Color => _colorPuzzles,
+                PuzzleType.BW => _BWPuzzles,
+                _ => throw new Exception("Invalid puzzle type")
+            };
+            List<Puzzle> filteredPuzzles = FilterPuzzles(puzzles, order, filter);
+
+            Discord.EmbedBuilder builder = new();
+            string thumbmail = puzzleType switch
+            {
+                PuzzleType.Color => _colorImage,
+                PuzzleType.BW => filter == Filter.TrueNonogramOnly ? _trueNonogramImage : _BWImage,
+                _ => throw new Exception("Invalid puzzle type")
+            };
+            builder.WithThumbnailUrl($"attachment://{thumbmail}");
+
+            string label = order switch
+            {
+                Order.XP => "XP",
+                Order.XPBySize => "XP/Size",
+                _ => throw new Exception("Invalid order type")
+            };
+            builder.WithTitle($"{label} ({filteredPuzzles.Count}/{puzzles.Count} left)");
+
+            Puzzle? puzzle = filteredPuzzles.FirstOrDefault();
+            if (puzzle is not null)
+            {
+                builder.AddField("Name", $"{puzzle.Name}");
+                builder.AddField("Size", $"{puzzle.Width}x{puzzle.Height} ({puzzle.BestSide})");
+            }
+
+            return builder.Build();
         }
 
         static List<Puzzle> FilterPuzzles(List<Puzzle> input, Order order, Filter filter)
@@ -254,22 +281,6 @@
             {
                 csv.WriteRecords(lastDonePuzzles);
             }
-        }
-
-        static Discord.Embed CreateEmbed(string image, string label, List<Puzzle> filtered, int total)
-        {
-            Discord.EmbedBuilder builder = new();
-            builder.WithTitle($"Best {label} ({filtered.Count}/{total} left)");
-            builder.WithThumbnailUrl($"attachment://{image}");
-
-            Puzzle? puzzle = filtered.FirstOrDefault();
-            if (puzzle is not null)
-            {
-                builder.AddField("Name", $"{puzzle.Name}");
-                builder.AddField("Size", $"{puzzle.Width}x{puzzle.Height} ({puzzle.BestSide})");
-            }
-
-            return builder.Build();
         }
     }
 }
