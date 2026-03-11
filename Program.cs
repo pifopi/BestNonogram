@@ -68,7 +68,7 @@
         {
 
             ulong channelId = 1479864933985550398;
-            Discord.IMessageChannel channel = await _client.GetChannelAsync(1479864933985550398) as Discord.IMessageChannel ?? throw new Exception("Channel is null");
+            Discord.IMessageChannel channel = await _client.GetChannelAsync(channelId) as Discord.IMessageChannel ?? throw new Exception("Channel is null");
 
             Discord.FileAttachment[] attachments = [
                 new(Path.Combine(_directory, _colorImage)),
@@ -88,7 +88,7 @@
                     CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.TrueNonogramOnly),
                 ];
                 await channel.SendFilesAsync(attachments, embeds: embeds);
-                await channel.SendMessageAsync("Enter Puzzle Name to mark as done.");
+                await channel.SendMessageAsync("Enter puzzle name to mark as done.");
 
                 TaskCompletionSource completedPuzzle = new();
                 async Task handler(Discord.WebSocket.SocketMessage message)
