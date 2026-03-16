@@ -23,6 +23,7 @@
     class Puzzle
     {
         public required string Name { get; set; }
+        public required string Author { get; set; }
         public required int XP { get; set; }
         public required int Width { get; set; }
         public required int Height { get; set; }
@@ -145,6 +146,8 @@
                     continue;
                 }
 
+                string author = table.Get("author").String;
+
                 int xp = new Func<int>(() =>
                 {
                     string xp = table.Get("new_xp").String;
@@ -177,6 +180,7 @@
                 puzzles.Add(new Puzzle
                 {
                     Name = name,
+                    Author = author,
                     XP = xp,
                     Width = width,
                     Height = height,
@@ -231,6 +235,9 @@
 
             DateTime cutoff = DateTime.Now.AddDays(-31);
             puzzles = puzzles.Where(p => p.LastDone < cutoff);
+
+            //TODO hack, wait for a real column deleted or something
+            puzzles = puzzles.Where(p => p.Author != "FuryBreaker");
 
             puzzles = filter switch
             {
