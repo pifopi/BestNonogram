@@ -58,7 +58,8 @@
 
         static async Task Main(string[] args)
         {
-            string token = Environment.GetEnvironmentVariable("DISCORD_BOT_TOKEN") ?? throw new Exception("DISCORD_BOT_TOKEN is not set");
+            string key = "DISCORD_BOT_TOKEN_BestNonogram";
+            string token = Environment.GetEnvironmentVariable(key) ?? throw new Exception($"{key} is not set");
             await _client.LoginAsync(Discord.TokenType.Bot, token);
             await _client.StartAsync();
             _client.Ready += OnReady;
