@@ -6,6 +6,3 @@ If you wish to update the list of puzzles, you can use your browser's html inspe
 - https://nonograms-katana.fandom.com/wiki/Module:Data/XP_nonograms_bw?action=edit
 
 Thanks to the nonoggram katana wiki for this amazing list of nonogram ! https://nonograms-katana.fandom.com/wiki
-
-TODO list
-- fix previously done puzzles not coming back
