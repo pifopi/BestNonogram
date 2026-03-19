@@ -234,7 +234,7 @@
         {
             IEnumerable<Puzzle> puzzles = input.AsEnumerable();
 
-            DateTime cutoff = DateTime.Now.AddDays(-31);
+            DateTime cutoff = DateTime.Now.AddDays(-45);
             puzzles = puzzles.Where(p => p.LastDone < cutoff);
 
             //TODO hack, wait for a real column deleted or something
