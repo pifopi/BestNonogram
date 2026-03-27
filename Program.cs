@@ -269,6 +269,7 @@
             {
                 lastUsed.LastDone = DateTime.Now;
             }
+            _lastDonePuzzles = _lastDonePuzzles.OrderBy(p => p.LastDone).ToList();
             WritePuzzlesToCsv(_lastDonePuzzlesFile, _lastDonePuzzles);
         }
 
