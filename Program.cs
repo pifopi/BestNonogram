@@ -1,6 +1,6 @@
 ﻿namespace BestNonogram
 {
-    enum PuzzleType { Color, BW }
+    enum PuzzleType { All, Color, BW }
     enum PuzzleDifficulty { TrueNonogram, OtherNonogram }
     enum Order { XP, XPBySize }
     enum Filter { All, TrueNonogramOnly }
@@ -86,8 +86,8 @@
                     CreateEmbed(PuzzleType.Color, Order.XPBySize, Filter.All),
                     CreateEmbed(PuzzleType.BW, Order.XP, Filter.All),
                     CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.All),
-                    CreateEmbed(PuzzleType.BW, Order.XP, Filter.TrueNonogramOnly),
-                    CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.TrueNonogramOnly),
+                    CreateEmbed(PuzzleType.All, Order.XP, Filter.TrueNonogramOnly),
+                    CreateEmbed(PuzzleType.All, Order.XPBySize, Filter.TrueNonogramOnly),
                 ];
                 await channel.SendFilesAsync(attachments, embeds: embeds);
                 await channel.SendMessageAsync("Enter puzzle name to mark as done.");
@@ -199,6 +199,7 @@
             {
                 PuzzleType.Color => _colorPuzzles,
                 PuzzleType.BW => _BWPuzzles,
+                PuzzleType.All => [.. _colorPuzzles, .. _BWPuzzles],
                 _ => throw new Exception("Invalid puzzle type")
             };
             List<Puzzle> filteredPuzzles = FilterPuzzles(puzzles, order, filter);
@@ -207,9 +208,13 @@
             string thumbmail = puzzleType switch
             {
                 PuzzleType.Color => _colorImage,
-                PuzzleType.BW => filter == Filter.TrueNonogramOnly ? _trueNonogramImage : _BWImage,
+                PuzzleType.BW => _BWImage,
                 _ => throw new Exception("Invalid puzzle type")
             };
+            if (filter == Filter.TrueNonogramOnly)
+            {
+                thumbmail = _trueNonogramImage;
+            }
             builder.WithThumbnailUrl($"attachment://{thumbmail}");
 
             string label = order switch
