@@ -1,4 +1,6 @@
-﻿namespace BestNonogram
+﻿using System.IO.MemoryMappedFiles;
+
+namespace BestNonogram
 {
     enum PuzzleType { All, Color, BW }
     enum PuzzleDifficulty { TrueNonogram, OtherNonogram }
@@ -205,17 +207,14 @@
             List<Puzzle> filteredPuzzles = FilterPuzzles(puzzles, order, filter);
 
             Discord.EmbedBuilder builder = new();
-            string thumbmail = puzzleType switch
+            string thumbnail = puzzleType switch
             {
                 PuzzleType.Color => _colorImage,
                 PuzzleType.BW => _BWImage,
+                PuzzleType.All => filter == Filter.TrueNonogramOnly ? _trueNonogramImage: throw new Exception("Invalid thumbnail"),
                 _ => throw new Exception("Invalid puzzle type")
             };
-            if (filter == Filter.TrueNonogramOnly)
-            {
-                thumbmail = _trueNonogramImage;
-            }
-            builder.WithThumbnailUrl($"attachment://{thumbmail}");
+            builder.WithThumbnailUrl($"attachment://{thumbnail}");
 
             string label = order switch
             {
