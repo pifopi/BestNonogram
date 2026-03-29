@@ -3031,7 +3031,7 @@ local nonograms = {
 		size            = "80x79",
 		category_1      = "Nature",
 		category_2      = "",
-		puzzle_type     = "3",
+		puzzle_type     = "2",
 	},
 	{
 		link            = "[#218852:Hogwarts Crest]",
