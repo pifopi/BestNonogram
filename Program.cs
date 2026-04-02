@@ -238,8 +238,15 @@ namespace BestNonogram
         {
             IEnumerable<Puzzle> puzzles = input.AsEnumerable();
 
-            DateTime cutoff = DateTime.Now.AddDays(-45);
+            DateTime cutoff = DateTime.Now.AddDays(-31);
             puzzles = puzzles.Where(p => p.LastDone < cutoff);
+
+            puzzles = puzzles.Where(delegate (Puzzle puzzle)
+            {
+                int index = _lastDonePuzzles.FindIndex(p => p.Name == puzzle.Name);
+                int count = _lastDonePuzzles.Count();
+                return count - index > 1000;
+            });
 
             //TODO hack, wait for a real column deleted or something
             puzzles = puzzles.Where(p => p.Author != "FuryBreaker");
