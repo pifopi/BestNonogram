@@ -84,12 +84,12 @@ namespace BestNonogram
             {
                 Discord.Embed[] embeds =
                 [
-                    CreateEmbed(PuzzleType.Color, Order.XP, Filter.All),
-                    CreateEmbed(PuzzleType.Color, Order.XPBySize, Filter.All),
-                    CreateEmbed(PuzzleType.BW, Order.XP, Filter.All),
-                    CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.All),
                     CreateEmbed(PuzzleType.All, Order.XP, Filter.TrueNonogramOnly),
                     CreateEmbed(PuzzleType.All, Order.XPBySize, Filter.TrueNonogramOnly),
+                    CreateEmbed(PuzzleType.BW, Order.XP, Filter.All),
+                    CreateEmbed(PuzzleType.BW, Order.XPBySize, Filter.All),
+                    CreateEmbed(PuzzleType.Color, Order.XP, Filter.All),
+                    CreateEmbed(PuzzleType.Color, Order.XPBySize, Filter.All),
                 ];
                 await channel.SendFilesAsync(attachments, embeds: embeds);
                 await channel.SendMessageAsync("Enter puzzle name to mark as done.");
