@@ -96,7 +96,7 @@
                 await _channel!.SendMessageAsync("Enter puzzle name to mark as done.");
 
                 _completedPuzzle = new TaskCompletionSource();
-                await Task.WhenAll(_completedPuzzle.Task);
+                await _completedPuzzle.Task;
             }
         }
 
@@ -120,7 +120,7 @@
             {
                 UpdateLastUsed(puzzle);
                 await _channel!.SendMessageAsync($"Puzzle {message.Content} updated.");
-                _completedPuzzle.SetResult();
+                _completedPuzzle.TrySetResult();
             }
         }
 
