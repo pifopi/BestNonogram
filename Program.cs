@@ -94,6 +94,8 @@
                 ];
                 await _channel!.SendFilesAsync(attachments, embeds: embeds);
                 await _channel!.SendMessageAsync("Enter puzzle name to mark as done.");
+
+                _completedPuzzle = new TaskCompletionSource();
                 await Task.WhenAll(_completedPuzzle.Task);
             }
         }
