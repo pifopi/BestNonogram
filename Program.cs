@@ -1,6 +1,4 @@
-﻿using System.IO.MemoryMappedFiles;
-
-namespace BestNonogram
+﻿namespace BestNonogram
 {
     enum PuzzleType { All, Color, BW }
     enum PuzzleDifficulty { TrueNonogram, OtherNonogram }
@@ -58,6 +56,10 @@ namespace BestNonogram
         private static string _BWImage = "BW.png";
         private static string _trueNonogramImage = "TrueNonogram.png";
 
+        private static ulong _channelId = 1479864933985550398;
+        private static Discord.IMessageChannel? _channel;
+        private static TaskCompletionSource _completedPuzzle = new();
+
         static async Task Main(string[] args)
         {
             string key = "DISCORD_BOT_TOKEN_BestNonogram";
@@ -65,14 +67,13 @@ namespace BestNonogram
             await _client.LoginAsync(Discord.TokenType.Bot, token);
             await _client.StartAsync();
             _client.Ready += OnReady;
+            _client.MessageReceived += OnMessageReceived;
             await Task.Delay(-1);
         }
 
         static async Task OnReady()
         {
-
-            ulong channelId = 1479864933985550398;
-            Discord.IMessageChannel channel = await _client.GetChannelAsync(channelId) as Discord.IMessageChannel ?? throw new Exception("Channel is null");
+            _channel = await _client.GetChannelAsync(_channelId) as Discord.IMessageChannel ?? throw new Exception("Channel is null");
 
             Discord.FileAttachment[] attachments = [
                 new(Path.Combine(_directory, _colorImage)),
@@ -91,36 +92,33 @@ namespace BestNonogram
                     CreateEmbed(PuzzleType.Color, Order.XP, Filter.All),
                     CreateEmbed(PuzzleType.Color, Order.XPBySize, Filter.All),
                 ];
-                await channel.SendFilesAsync(attachments, embeds: embeds);
-                await channel.SendMessageAsync("Enter puzzle name to mark as done.");
+                await _channel!.SendFilesAsync(attachments, embeds: embeds);
+                await _channel!.SendMessageAsync("Enter puzzle name to mark as done.");
+                await Task.WhenAll(_completedPuzzle.Task);
+            }
+        }
 
-                TaskCompletionSource completedPuzzle = new();
-                async Task handler(Discord.WebSocket.SocketMessage message)
-                {
-                    if (message.Channel.Id != channelId)
-                    {
-                        return;
-                    }
-                    if (message.Author.IsBot)
-                    {
-                        return;
-                    }
-                    List<Puzzle> allPuzzles = [.. _colorPuzzles, .. _BWPuzzles];
-                    Puzzle? puzzle = allPuzzles.Find(p => p.Name == message.Content);
-                    if (puzzle is null)
-                    {
-                        await channel.SendMessageAsync($"Puzzle {message.Content} not found.");
-                    }
-                    else
-                    {
-                        UpdateLastUsed(puzzle);
-                        await channel.SendMessageAsync($"Puzzle {message.Content} updated.");
-                        completedPuzzle.SetResult();
-                    }
-                }
-                _client.MessageReceived += handler;
-                await Task.WhenAll(completedPuzzle.Task);
-                _client.MessageReceived -= handler;
+        static async Task OnMessageReceived(Discord.WebSocket.SocketMessage message)
+        {
+            if (message.Channel.Id != _channelId)
+            {
+                return;
+            }
+            if (message.Author.IsBot)
+            {
+                return;
+            }
+            List<Puzzle> allPuzzles = [.. _colorPuzzles, .. _BWPuzzles];
+            Puzzle? puzzle = allPuzzles.Find(p => p.Name == message.Content);
+            if (puzzle is null)
+            {
+                await _channel!.SendMessageAsync($"Puzzle {message.Content} not found.");
+            }
+            else
+            {
+                UpdateLastUsed(puzzle);
+                await _channel!.SendMessageAsync($"Puzzle {message.Content} updated.");
+                _completedPuzzle.SetResult();
             }
         }
 
