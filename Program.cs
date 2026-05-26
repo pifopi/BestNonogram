@@ -245,7 +245,7 @@
             {
                 int index = _lastDonePuzzles.FindIndex(p => p.Name == puzzle.Name);
                 int count = _lastDonePuzzles.Count();
-                return count - index > 1000;
+                return count - index > 1100;
             });
 
             //TODO hack, wait for a real column deleted or something
