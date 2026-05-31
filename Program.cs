@@ -238,7 +238,7 @@
         {
             IEnumerable<Puzzle> puzzles = input.AsEnumerable();
 
-            DateTime cutoff = DateTime.Now.AddDays(-35);
+            DateTime cutoff = DateTime.Now.AddDays(-45);
             puzzles = puzzles.Where(p => p.LastDone < cutoff);
 
             puzzles = puzzles.Where(delegate (Puzzle puzzle)
