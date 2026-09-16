@@ -153,8 +153,7 @@
 
                 int xp = new Func<int>(() =>
                 {
-                    string xp = table.Get("new_xp").String;
-                    xp = xp.Replace("~", "");
+                    string xp = table.Get("xp").String;
                     return int.Parse(xp);
                 })();
 
@@ -211,7 +210,7 @@
             {
                 PuzzleType.Color => _colorImage,
                 PuzzleType.BW => _BWImage,
-                PuzzleType.All => filter == Filter.TrueNonogramOnly ? _trueNonogramImage: throw new Exception("Invalid thumbnail"),
+                PuzzleType.All => filter == Filter.TrueNonogramOnly ? _trueNonogramImage : throw new Exception("Invalid thumbnail"),
                 _ => throw new Exception("Invalid puzzle type")
             };
             builder.WithThumbnailUrl($"attachment://{thumbnail}");
