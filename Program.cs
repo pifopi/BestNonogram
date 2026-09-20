@@ -247,9 +247,6 @@
                 return count - index > 1100;
             });
 
-            //TODO hack, wait for a real column deleted or something
-            puzzles = puzzles.Where(p => p.Author != "FuryBreaker");
-
             puzzles = filter switch
             {
                 Filter.All => puzzles,
