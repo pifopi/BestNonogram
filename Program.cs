@@ -49,8 +49,8 @@
 
         private static string _lastDonePuzzlesFile = Path.Combine(_directory, "LastDonePuzzles.csv");
         private static List<LastDonePuzzle> _lastDonePuzzles = GetPuzzlesFromCsv(_lastDonePuzzlesFile, new LastDonePuzzleMap());
-        private static List<Puzzle> _colorPuzzles = GetPuzzlesFromLua(Path.Combine(_directory, "Colors.lua"), PuzzleType.Color);
-        private static List<Puzzle> _BWPuzzles = GetPuzzlesFromLua(Path.Combine(_directory, "BWs.lua"), PuzzleType.BW);
+        private static List<Puzzle> _colorPuzzles = GetPuzzlesFromLua([Path.Combine(_directory, "Colors.lua"), Path.Combine(_directory, "Others.lua")], PuzzleType.Color);
+        private static List<Puzzle> _BWPuzzles = GetPuzzlesFromLua([Path.Combine(_directory, "BWs.lua")], PuzzleType.BW);
 
         private static string _colorImage = "Color.png";
         private static string _BWImage = "BW.png";
@@ -133,63 +133,67 @@
             return csv.GetRecords<LastDonePuzzle>().ToList();
         }
 
-        static List<Puzzle> GetPuzzlesFromLua(string luaFile, PuzzleType puzzleType)
+        static List<Puzzle> GetPuzzlesFromLua(string[] luaFiles, PuzzleType puzzleType)
         {
-            MoonSharp.Interpreter.Script lua = new();
-            var result = lua.DoFile(luaFile);
-
             List<Puzzle> puzzles = new();
-            foreach (var item in result.Table.Values)
+            foreach (string luaFile in luaFiles)
             {
-                var table = item.Table;
+                MoonSharp.Interpreter.Script lua = new();
+                var result = lua.DoFile(luaFile);
 
-                string name = table.Get("link").String;
-                if (string.IsNullOrEmpty(name))
+                foreach (var item in result.Table.Values)
                 {
-                    continue;
+                    var table = item.Table;
+
+                    string name = table.Get("link").String;
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        continue;
+                    }
+
+                    string author = table.Get("author").String;
+
+                    int xp = new Func<int>(() =>
+                    {
+                        string xp = table.Get("xp").String;
+                        return int.Parse(xp);
+                    })();
+
+                    (int width, int height) = new Func<(int, int)>(() =>
+                    {
+                        string size = table.Get("size").String;
+                        string[] sizes = size.Split('x');
+                        System.Diagnostics.Debug.Assert(sizes.Count() == 2, $"Size field is invalid {size}");
+                        int width = int.Parse(sizes[0]);
+                        int height = int.Parse(sizes[1]);
+                        return (width, height);
+                    })();
+
+                    PuzzleDifficulty difficulty = new Func<PuzzleDifficulty>(() =>
+                    {
+                        string type = table.Get("puzzle_type").String;
+                        return type == "1" ? PuzzleDifficulty.TrueNonogram : PuzzleDifficulty.OtherNonogram;
+                    })();
+
+                    DateTime lastDone = new Func<DateTime>(() =>
+                    {
+                        LastDonePuzzle? lastDonePuzzle = _lastDonePuzzles.Find(p => p.Name == name);
+                        return lastDonePuzzle != null ? lastDonePuzzle.LastDone : DateTime.MinValue;
+                    })();
+
+                    puzzles.Add(new Puzzle
+                    {
+                        Name = name,
+                        Author = author,
+                        XP = xp,
+                        Width = width,
+                        Height = height,
+                        Difficulty = difficulty,
+                        Type = puzzleType,
+                        LastDone = lastDone
+                    });
                 }
 
-                string author = table.Get("author").String;
-
-                int xp = new Func<int>(() =>
-                {
-                    string xp = table.Get("xp").String;
-                    return int.Parse(xp);
-                })();
-
-                (int width, int height) = new Func<(int, int)>(() =>
-                {
-                    string size = table.Get("size").String;
-                    string[] sizes = size.Split('x');
-                    System.Diagnostics.Debug.Assert(sizes.Count() == 2, $"Size field is invalid {size}");
-                    int width = int.Parse(sizes[0]);
-                    int height = int.Parse(sizes[1]);
-                    return (width, height);
-                })();
-
-                PuzzleDifficulty difficulty = new Func<PuzzleDifficulty>(() =>
-                {
-                    string type = table.Get("puzzle_type").String;
-                    return type == "1" ? PuzzleDifficulty.TrueNonogram : PuzzleDifficulty.OtherNonogram;
-                })();
-
-                DateTime lastDone = new Func<DateTime>(() =>
-                {
-                    LastDonePuzzle? lastDonePuzzle = _lastDonePuzzles.Find(p => p.Name == name);
-                    return lastDonePuzzle != null ? lastDonePuzzle.LastDone : DateTime.MinValue;
-                })();
-
-                puzzles.Add(new Puzzle
-                {
-                    Name = name,
-                    Author = author,
-                    XP = xp,
-                    Width = width,
-                    Height = height,
-                    Difficulty = difficulty,
-                    Type = puzzleType,
-                    LastDone = lastDone
-                });
             }
             return puzzles;
         }
