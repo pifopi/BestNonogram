@@ -49,8 +49,8 @@
 
         private static string _lastDonePuzzlesFile = Path.Combine(_directory, "LastDonePuzzles.csv");
         private static List<LastDonePuzzle> _lastDonePuzzles = GetPuzzlesFromCsv(_lastDonePuzzlesFile, new LastDonePuzzleMap());
-        private static List<Puzzle> _colorPuzzles = GetPuzzlesFromLua([Path.Combine(_directory, "Colors.lua"), Path.Combine(_directory, "Others.lua")], PuzzleType.Color);
-        private static List<Puzzle> _BWPuzzles = GetPuzzlesFromLua([Path.Combine(_directory, "BWs.lua")], PuzzleType.BW);
+        private static List<Puzzle> _colorPuzzles = GetPuzzlesFromLua([Path.Combine(_directory, "Colors.lua"), Path.Combine(_directory, "ColorsOther.lua")], PuzzleType.Color);
+        private static List<Puzzle> _BWPuzzles = GetPuzzlesFromLua([Path.Combine(_directory, "BWs.lua"), Path.Combine(_directory, "BWsOther.lua")], PuzzleType.BW);
 
         private static string _colorImage = "Color.png";
         private static string _BWImage = "BW.png";
