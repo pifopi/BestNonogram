@@ -1,7 +1,7 @@
 -- For adding black and white nonograms that reward more than 2000 XP use "Module:Data/XP_nonograms_bw".
--- If a name uses double quotes use a forward slash (e.g. "The "Z letter" -> "The \"Z\" letter").
-		
--------------------------- ONLY BASE XP FROM NONOGRAMS! -------------------------- 
+-- If a name uses double quotes use a forward slash (e.g. "The "Z" letter" -> "The \"Z\" letter").
+
+-------------------------- ONLY BASE XP FROM NONOGRAMS! --------------------------
 ----------- (Without any bonuses, like Sushi, Date cake, skills, etc.) -----------
 
 return {
@@ -214,7 +214,7 @@ return {
 	},
 	{
 		link            = "[#172814:A luxuriant tree]",
-		author          = "Turkish_123",
+		author          = "lost6590",
 		xp              = "1897",
 		size            = "79x74",
 		category_1      = "Plants",
@@ -617,12 +617,11 @@ return {
 		category_2      = "",
 		puzzle_type     = "1",
 	},
-	-- Placeholder.
+	-- Placeholder (for copy-pasting).
 	{
 		link            = "",
 		author          = "",
 		xp              = "",
-		new_xp          = "",
 		size            = "",
 		category_1      = "",
 		category_2      = "",
